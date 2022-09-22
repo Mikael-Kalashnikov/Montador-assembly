@@ -7,13 +7,23 @@
 
 using namespace std;
 
+unsigned valueInstructionR(ifstream&, string);
+
+bool isR(string str) {
+	for (int i = 0; i < 16; i++) {
+		if (str == r[i].type)
+			return true;
+	}
+	return false;
+}
+
 // Colocar na matriz
 // Ler linhas e colocar na matriz
 // Contar a linha do label
 
 int main()
 {
-	int labelCount = 0;
+	unsigned labelCount = 0;
 	string arquivo = "test.asm";
 	std::ifstream inFile(arquivo);
 	//	std::count(std::istreambuf_iterator<char>(inFile),
@@ -47,7 +57,7 @@ int main()
 	}
 	fin.close();
 	fin.open(arquivo);
-	while(!fin.eof()){
+ 	while(!fin.eof()){
 		string aux;
 		int value = 0;
 		fin >> aux;
@@ -56,29 +66,7 @@ int main()
 
 		if (!regex_search(aux, regInst))
 			if(isR(aux)){
-				for(int i = 0; i < 16; i++)
-					if(aux == r[i].type){
-						value = value | r[i].op;
-
-						for(int j = 0; j < 3; j++){
-							fin >> aux; // $19,							
-							aux.erase(2,3);
-							int regis;
-							for(regis = 0; i< 32; i++)
-								if(aux == registradores[regis])
-									break;
-							
-							cout << aux << endl;
-							value = value << 5;
-							value = value | regis;
-						}
-
-						value = value << 5;
-						//value = value | r[i].shemt;
-
-						value = value << 6;
-						value = value | r[i].funct;
-					}
+				valueInstructionR(fin, aux);
 			}
 			else if (isI(aux))
 				for(int k = 0; k < 11; k++){
@@ -111,4 +99,72 @@ int main()
 
 		cout << value;
 	}
+}
+
+unsigned valueInstructionR(std::ifstream& fin, string aux) {
+	unsigned value = 0;
+	for (int i = 0; i < 16; i++)
+		if (aux == r[i].type && (aux != r[0].type && aux != r[1].type)) {
+			int regs[3];
+
+			value = value | r[i].op;
+			value = value << 6;
+
+			for (int j = 0; j < 3; j++) {
+				fin >> aux; // $19,							
+				aux.erase(3, 3);
+				int regis;
+				for (regis = 0; regis < 32; regis++)
+					if (aux == registradores[regis])
+						break;
+				regs[j] = regis;
+			}
+
+			value = value | regs[1];
+			value = value << 5;
+
+			value = value | regs[2];
+			value = value << 5;
+
+			value = value | regs[0];
+			value = value << 5;
+
+			value = value << 6;
+			value = value | r[i].funct;
+		}
+		else if (aux == r[0].type || aux == r[1].type) {
+			int regs[3];
+			int func;
+
+			aux == r[0].type ? func = 0 : func = 2;
+
+			value = value | r[i].op;
+			value = value << 6;
+
+			for (int j = 0; j < 2; j++) {
+				fin >> aux; // $19,							
+				aux.erase(3, 3);
+				int regis;
+				for (regis = 0; regis < 32; regis++)
+					if (aux == registradores[regis])
+						break;
+				regs[j] = regis;
+			}
+
+			fin >> aux;
+			regs[2] = stoi(aux);
+			value = value << 5; // rs
+
+			value = value | regs[1]; // rt
+			value = value << 5;
+
+			value = value | regs[0]; // rd
+			value = value << 5;
+
+			value = value | regs[2]; // shamt
+			
+			value = value << 6;
+			value = value | func;
+		}
+	return value;
 }
