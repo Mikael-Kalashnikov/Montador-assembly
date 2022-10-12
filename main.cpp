@@ -35,11 +35,11 @@ bool isR(string);
 bool isI(string);
 bool isJ(string);
 
-R typeR[18] = { {"sll", 0}, {"srl", 2}, {"jr", 8}, {"mtfhi", 16}, {"mthflo", 18}, {"mult", 24}, {"multu", 25},{ "div", 26},{ "divu", 27}, {"add", 32}, {"addu", 33}, {"sub", 34}, {"subu", 35}, {"and", 36},{ "or", 37},{ "slt", 43}, {"sltu", 43}, {"mul", 2, 28} };
+R typeR[18] = { {"sll", 0}, {"srl", 2}, {"jr", 8}, {"mfhi", 16}, {"mflo", 18}, {"mult", 24}, {"multu", 25},{ "div", 26},{ "divu", 27}, {"add", 32}, {"addu", 33}, {"sub", 34}, {"subu", 35}, {"and", 36},{ "or", 37},{ "slt", 43}, {"sltu", 43}, {"mul", 2, 28} };
 I typeI[11] = { {"beq", 4}, {"bne", 5}, {"addi", 8}, {"addiu", 9}, {"slti", 10}, {"sltiu", 11}, {"andi", 12}, {"ori", 13}, {"lui", 15}, {"lw", 35}, {"sw", 43} };
 J typeJ[2] = { {"j", 2}, {"jal", 3} };
 
-string registradores[32] = { "$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$s8","$ra" };
+string registradores[32] = { "$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28", "$29", "$30","$31" };
 
 const int initialAddress = 0x00400000;
 
@@ -78,7 +78,7 @@ int main()
 		}
 		char checker;
 		do {
-			 checker = fin.get();
+			checker = fin.get();
 		}
 		while (checker != '\n' && !fin.eof()); // vai rodar at� pegar a quebra de linha
 		line++;
@@ -90,7 +90,7 @@ int main()
 	char res;
 	cout << "Deseja salvar o arquivo em qual formato?" << endl;
 	do {
-		cout << "[1] - Binario\n[2] - Hexadecimal  :_\b";
+		cout << "[1] - Binario\n[2] - Hexadecimal\n:_\b";
 		cin >> res;
 	} while (res != '1' && res != '2');
 
@@ -100,8 +100,8 @@ int main()
 	int runTimeLine = 0;
  	while(!fin.eof()){
 		string aux;
-		regex regInst("[0-9$:]");
 		fin >> aux;
+		regex regInst("[0-9$:]");
 
 		if (!regex_search(aux, regInst))
 			if (isR(aux)) {
@@ -120,14 +120,14 @@ int main()
 				exit(EXIT_FAILURE);
 	}
 
-	cout << "\nArquivo salvo com o nome 'stdout'";
+	cout << "\nArquivo salvo com o nome 'stdout.bin|.hex'\n";
 
 	fin.close();
 	fout.close();
 }
 
 bool isR(string str) {
-	for (int i = 0; i < 16; i++) {
+	for (int i = 0; i < 18; i++) {
 		if (str == typeR[i].type)
 			return true;
 	}
@@ -196,34 +196,71 @@ unsigned valueInstructionR(std::ifstream& fin, string aux, int& runTimeLine) {
 		return value;
 	}
 
-	for (int i = 2; i < 16; i++) {
+	for (int i = 2; i < 18; i++) {
 		if (aux == typeR[i].type) {
-			int regs[3];
+			int regs[3]{};
 
 			value = value | typeR[i].op;
 			value = value << 6;
 
-			for (int j = 0; j < 3; j++) {
-				fin >> aux; // $19,							
-				aux.erase(3, 3);
+			if (typeR[i].type == "mult" || typeR[i].type == "multu" || typeR[i].type == "lui" || typeR[i].type == "div"){
+				for (int j = 0; j < 2; j++) {
+					fin >> aux; // $19,		
+					regex reg("[,]");
+					if (regex_search(aux, reg))
+						aux.pop_back();			
+					int regis;
+					for (regis = 0; regis < 32; regis++)
+						if (aux == registradores[regis])
+							break;
+					regs[j] = regis;
+				}
+				value = value | regs[1];
+				value = value << 5;
+
+				value = value | regs[0];
+				value = value << 5;
+
+				value = value << 6;
+				value = value | typeR[i].funct;
+
+			} else if (typeR[i].type == "mfhi" || typeR[i].type == "mflo"){
 				int regis;
-				for (regis = 0; regis < 32; regis++)
-					if (aux == registradores[regis])
-						break;
-				regs[j] = regis;
+					for (regis = 0; regis < 32; regis++)
+						if (aux == registradores[regis])
+							break;
+					regs[0] = regis;
+
+				value = value | regs[0];
+				value = value << 5;
+
+				value = value << 6;
+				value = value | typeR[i].funct;
+			} else {
+				for (int j = 0; j < 3; j++) {
+					fin >> aux; // $19,		
+					regex reg("[,]");
+					if (regex_search(aux, reg))
+						aux.pop_back();			
+					int regis;
+					for (regis = 0; regis < 32; regis++)
+						if (aux == registradores[regis])
+							break;
+					regs[j] = regis;
+				}
+
+				value = value | regs[1];
+				value = value << 5;
+
+				value = value | regs[2];
+				value = value << 5;
+
+				value = value | regs[0];
+				value = value << 5;
+
+				value = value << 6;
+				value = value | typeR[i].funct;
 			}
-
-			value = value | regs[1];
-			value = value << 5;
-
-			value = value | regs[2];
-			value = value << 5;
-
-			value = value | regs[0];
-			value = value << 5;
-
-			value = value << 6;
-			value = value | typeR[i].funct;
 
 			fin.get() == '\n' ? runTimeLine++ : runTimeLine = runTimeLine; // Incremento de linha em tempo de execu��o
 
@@ -269,31 +306,81 @@ unsigned valueInstructionI(ifstream& fin, string aux, vector<Label> l, int& runT
 		return value;
 	}
 
-	for (int j = 2; j < 10; j++) {
+	for (int j = 2; j < 11; j++) {
 		if (aux == typeI[j].type) {
 			value = value | typeI[j].op;
 			value = value << 5;
-
-			for (int k = 0; k < 2; k++) {
+			if (typeI[j].type == "lw" || typeI[j].type == "sw"){
 				fin >> aux;
-				aux.erase(3, 3);
+				aux.pop_back();
 				int regis;
 				for (regis = 0; regis < 32; regis++)
 					if (aux == registradores[regis])
 						break;
-				regs[k] = regis;
+				regs[0] = regis;
+
+				int stack;
+				fin >> aux;
+				stack = stoi(aux);
+
+				fin >> aux;
+				aux.erase(0, 1);
+				aux.pop_back();
+				for (regis = 0; regis < 32; regis++)
+					if (aux == registradores[regis])
+						break;
+				regs[1] = regis;
+
+				value = value | regs[1];
+				value = value << 5;
+
+				value = value | regs[0];
+                value = value << 5;
+
+				value = value | initialAddress + stack;
+                value = value << 16;
+
+				} else if (typeI[j].type == "lui") {
+					fin >> aux;
+					aux.pop_back();
+					int regis;
+					for (regis = 0; regis < 32; regis++)
+						if (aux == registradores[regis])
+							break;
+					regs[0] = regis;
+
+					int stack;
+					fin >> aux;
+					stack = stoi(aux);
+
+					value = value << 5;
+
+					value = value | regs[0];
+					value = value << 5;
+				} else {
+				for (int k = 0; k < 2; k++) {
+					fin >> aux;
+					aux.pop_back();
+
+					int regis;
+					for (regis = 0; regis < 32; regis++)
+						if (aux == registradores[regis])
+							break;
+					regs[k] = regis;
+				}
+
+					value = value | regs[1];
+					value = value << 5;
+
+					value = value | regs[0];
+					value = value << 16;
+
+					if (typeI[j].type != "mult" || typeI[j].type != "multu" || typeI[j].type != "lui" || typeI[j].type != "div"){
+						fin >> aux;
+						value = value | stoi(aux);
+					}
 			}
-
-			value = value | regs[1];
-			value = value << 5;
-
-			value = value | regs[0];
-			value = value << 16;
-
-			fin >> aux;
-			value = value | stoi(aux);
-
-			fin.get() == '\n' ? runTimeLine++ : runTimeLine = runTimeLine; // Incremento de linha em tempo de execu��o
+			fin.get() == '\n' ? runTimeLine++ : runTimeLine = runTimeLine; // Incremento de linha em tempo de execucao
 
 			break;
 		}
